@@ -500,27 +500,131 @@ body {
   border-radius: 0 0 10px 10px;
 }
 
-.zombie-word-bubble {
-  background: white;
-  padding: 8px 12px;
-  border-radius: 12px;
-  font-family: var(--font-display);
-  font-size: 20px;
-  color: var(--text-dark);
-  position: relative;
-  margin-bottom: 8px;
-  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.zombie-word-bubble::after {
-  content: '';
+/* 僵尸头顶的单词牌 */
+.zombie-word-sign {
   position: absolute;
-  bottom: -8px;
+  top: -80px;
   left: 50%;
   transform: translateX(-50%);
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 8px solid white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 10;
+}
+
+.word-sign-image {
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 3px solid var(--ui-accent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  background: white;
+}
+
+.word-sign-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.3s ease;
+}
+
+.image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+}
+
+.word-sign-text {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--text-dark);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid #FF8C00;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+/* 僵尸手臂 */
+.zombie-arms {
+  position: absolute;
+  top: 25px;
+  width: 100%;
+}
+
+.zombie-arm {
+  position: absolute;
+  width: 15px;
+  height: 40px;
+  background: var(--zombie-green);
+  border-radius: 8px;
+}
+
+.zombie-arm.left {
+  left: -10px;
+  transform: rotate(30deg);
+  transform-origin: top center;
+  animation: arm-swing-left 0.5s ease-in-out infinite;
+}
+
+.zombie-arm.right {
+  right: -10px;
+  transform: rotate(-30deg);
+  transform-origin: top center;
+  animation: arm-swing-right 0.5s ease-in-out infinite;
+}
+
+@keyframes arm-swing-left {
+  0%, 100% { transform: rotate(30deg); }
+  50% { transform: rotate(45deg); }
+}
+
+@keyframes arm-swing-right {
+  0%, 100% { transform: rotate(-30deg); }
+  50% { transform: rotate(-45deg); }
+}
+
+/* 僵尸腿 */
+.zombie-legs {
+  position: absolute -15;
+  bottom:px;
+  width: 60px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.zombie-leg {
+  width: 18px;
+  height: 25px;
+  background: #4A5F1A;
+  border-radius: 0 0 8px 8px;
+}
+
+.zombie-leg.left {
+  animation: leg-walk-left 0.5s ease-in-out infinite;
+}
+
+.zombie-leg.right {
+  animation: leg-walk-right 0.5s ease-in-out infinite;
+}
+
+@keyframes leg-walk-left {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-5px); }
+}
+
+@keyframes leg-walk-right {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(5px); }
 }
 
 @keyframes zombie-walk {

@@ -1,2 +1,3 @@
-export { GameCanvas, Zombie, ZombieList, ProjectileDisplay } from './GameCanvas';
+export { GameCanvas, ZombieList, ProjectileDisplay } from './GameCanvas';
+export { Zombie } from './Zombie';
 export { VoiceControl } from './VoiceControl';

@@ -37,21 +37,24 @@ export function getNextProjectileId(): string {
 }
 
 export function startZombieSpawning(level: number) {
-  lastSpawnTime = Date.now();
-
-  const spawnZombieAtInterval = () => {
-    const now = Date.now();
-    const interval = Math.max(1500, ZOMBIE_SPAWN_INTERVAL - (level - 1) * 200);
-
-    if (now - lastSpawnTime >= interval) {
+  // Each level only has ONE zombie (one word)
+  // Spawn only if no zombie exists
+  const { zombies } = useGameStore.getState().state;
+  
+  if (zombies.length === 0) {
+    spawnNewZombie(level);
+  }
+  
+  // Still run the check loop in case zombie gets defeated
+  const checkAndSpawn = () => {
+    const { zombies: currentZombies } = useGameStore.getState().state;
+    if (currentZombies.length === 0) {
       spawnNewZombie(level);
-      lastSpawnTime = now;
     }
-
-    spawnTimer = requestAnimationFrame(spawnZombieAtInterval);
+    spawnTimer = requestAnimationFrame(checkAndSpawn);
   };
-
-  spawnTimer = requestAnimationFrame(spawnZombieAtInterval);
+  
+  spawnTimer = requestAnimationFrame(checkAndSpawn);
 }
 
 export function stopZombieSpawning() {

@@ -1,42 +1,8 @@
 import { Zombie as ZombieType } from '../../types/game';
 import { useGameStore } from '../../stores/gameStore';
+import { Zombie, ZombieList } from './Zombie';
 
-interface ZombieProps {
-  zombie: ZombieType;
-}
-
-export function Zombie({ zombie }: ZombieProps) {
-  const x = zombie.x;
-
-  const statusClass = zombie.status === 'hit' ? 'hit' : zombie.status === 'dying' ? 'dying' : '';
-
-  return (
-    <div className={`zombie ${statusClass}`} style={{ left: `${x}px` }}>
-      <div className="zombie-word-bubble">{zombie.word.word}</div>
-      <div className="zombie-body">
-        <div className="zombie-face">
-          <div className="zombie-eye left"></div>
-          <div className="zombie-eye right"></div>
-          <div className="zombie-mouth"></div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface ZombieListProps {
-  zombies: ZombieType[];
-}
-
-export function ZombieList({ zombies }: ZombieListProps) {
-  return (
-    <div className="zombie-lane">
-      {zombies.map(zombie => (
-        <Zombie key={zombie.id} zombie={zombie} />
-      ))}
-    </div>
-  );
-}
+export { ZombieList };
 
 export function GameCanvas() {
   const zombies = useGameStore(s => s.state.zombies);
