@@ -9,6 +9,7 @@ export interface Zombie {
   id: string;
   word: Word;
   x: number;
+  y?: number; // For vertical movement in portrait mode
   speed: number;
   status: 'walking' | 'hit' | 'dying' | 'dead';
 }

@@ -1,14 +1,29 @@
 import { Zombie as ZombieType } from '../../types/game';
 import { useGameStore } from '../../stores/gameStore';
 import { Zombie, ZombieList } from './Zombie';
+import { getGameDimensions } from '../../utils/orientation';
+import { useState, useEffect } from 'react';
 
 export { ZombieList };
 
 export function GameCanvas() {
   const zombies = useGameStore(s => s.state.zombies);
+  const [dims, setDims] = useState(getGameDimensions());
+
+  useEffect(() => {
+    const updateDims = () => setDims(getGameDimensions());
+    window.addEventListener('resize', updateDims);
+    return () => window.removeEventListener('resize', updateDims);
+  }, []);
+
+  const isPortrait = dims.orientation === 'portrait';
 
   return (
-    <div className="game-area">
+    <div className="game-area" style={{
+      width: '100vw',
+      height: '100vh',
+      position: 'relative',
+    }}>
       <div className="clouds">
         <div className="cloud cloud-1"></div>
         <div className="cloud cloud-2"></div>
@@ -16,11 +31,16 @@ export function GameCanvas() {
       </div>
       <ZombieList zombies={zombies} />
       <div className="projectile-lane"></div>
-      <div className="launcher-lane">
-        <Launcher />
-        <Launcher />
-        <Launcher />
-        <Launcher />
+      {/* Single centered launcher */}
+      <div 
+        className="launcher-container"
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: isPortrait ? '20%' : '50%',
+          transform: 'translate(-50%, -50%)',
+        }}
+      >
         <Launcher />
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { Zombie, Projectile, Word } from '../types/game';
 import { getWordsByLevel } from '../data/words';
+import { getGameDimensions, getDeviceOrientation } from '../utils/orientation';
 import {
   useGameStore,
   spawnZombie,
@@ -17,11 +18,9 @@ import {
 } from '../stores/gameStore';
 
 const ZOMBIE_SPAWN_INTERVAL = 3000;
-const ZOMBIE_SPEED_BASE = 0.5;
+const ZOMBIE_SPEED_BASE = 0.3; // Slower speed for kids to see
 const PROJECTILE_SPEED = 8;
-const GAME_WIDTH = 800;
-const LAUNCHER_Y = 500;
-const GAME_OVER_REACH = 100;
+const GAME_OVER_MARGIN = 100;
 
 let zombieIdCounter = 0;
 let projectileIdCounter = 0;
@@ -67,13 +66,18 @@ export function stopZombieSpawning() {
 export function spawnNewZombie(level: number) {
   const words = getWordsByLevel(level);
   const randomWord = words[Math.floor(Math.random() * words.length)];
-
+  const dims = getGameDimensions();
+  
+  // Spawn zombie in visible area, not off-screen
+  // For kids: zombie should start visible so they can see the word immediately
   const zombie: Zombie = {
     id: getNextZombieId(),
     word: randomWord,
-    x: GAME_WIDTH + 50,
-    speed: ZOMBIE_SPEED_BASE + (level - 1) * 0.1,
+    x: dims.zombieStartX,
+    speed: ZOMBIE_SPEED_BASE + (level - 1) * 0.05, // Slower increment for kids
     status: 'walking',
+    // Store orientation for movement logic
+    y: dims.zombieStartY,
   };
 
   spawnZombie(zombie);
@@ -81,28 +85,48 @@ export function spawnNewZombie(level: number) {
 
 export function updateZombies(deltaTime: number) {
   const { zombies } = useGameStore.getState().state;
+  const dims = getGameDimensions();
+  const isPortrait = dims.orientation === 'portrait';
 
   zombies.forEach(zombie => {
     if (zombie.status === 'walking') {
-      const newX = zombie.x - zombie.speed * deltaTime * 0.06;
-
-      if (newX <= GAME_OVER_REACH) {
-        // Zombie reached the player
-        loseLife();
-        removeZombie(zombie.id);
+      let newX = zombie.x;
+      let newY = zombie.y || dims.zombieStartY;
+      
+      // Move zombie based on orientation
+      if (isPortrait) {
+        // Portrait: move from bottom to top (y decreases)
+        newY = zombie.y! - zombie.speed * deltaTime * 0.06;
+        
+        if (newY <= dims.launcherY + 50) {
+          // Zombie reached the launcher
+          loseLife();
+          removeZombie(zombie.id);
+        } else {
+          updateZombie({ ...zombie, y: newY });
+        }
       } else {
-        updateZombie({ ...zombie, x: newX });
+        // Landscape: move from right to left (x decreases)
+        newX = zombie.x - zombie.speed * deltaTime * 0.06;
+
+        if (newX <= GAME_OVER_MARGIN) {
+          // Zombie reached the launcher
+          loseLife();
+          removeZombie(zombie.id);
+        } else {
+          updateZombie({ ...zombie, x: newX });
+        }
       }
     }
   });
 }
 
 export function launchProjectile(targetZombie: Zombie) {
-  const launcherX = GAME_WIDTH / 2;
+  const dims = getGameDimensions();
 
   const projectile: Projectile = {
     id: getNextProjectileId(),
-    x: launcherX,
+    x: dims.launcherX,
     targetZombieId: targetZombie.id,
     status: 'flying',
   };

@@ -49,6 +49,7 @@ function getWordImageUrl(word: string): string {
 
 export function Zombie({ zombie }: ZombieProps) {
   const x = zombie.x;
+  const y = zombie.y || window.innerHeight / 2;
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   
@@ -56,7 +57,11 @@ export function Zombie({ zombie }: ZombieProps) {
   const statusClass = zombie.status === 'hit' ? 'hit' : zombie.status === 'dying' ? 'dying' : '';
 
   return (
-    <div className={`zombie ${statusClass}`} style={{ left: `${x}px` }}>
+    <div className={`zombie ${statusClass}`} style={{ 
+      left: `${x}px`,
+      top: `${y}px`,
+      transform: 'translate(-50%, -50%)'
+    }}>
       {/* 头顶的单词牌 - 包含单词和图片/GIF */}
       <div className="zombie-word-sign">
         <div className="word-sign-image">
