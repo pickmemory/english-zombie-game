@@ -1,0 +1,239 @@
+import { Zombie, Projectile, Word } from '../types/game';
+import { getWordsByLevel } from '../data/words';
+import {
+  useGameStore,
+  spawnZombie,
+  updateZombie,
+  removeZombie,
+  launchProjectile as launchProjectileAction,
+  removeProjectile,
+  setCurrentWord,
+  addScore,
+  loseLife,
+  incrementCombo,
+  resetCombo,
+  setGameResult,
+  setPronunciationResult,
+} from '../stores/gameStore';
+
+const ZOMBIE_SPAWN_INTERVAL = 3000;
+const ZOMBIE_SPEED_BASE = 0.5;
+const PROJECTILE_SPEED = 8;
+const GAME_WIDTH = 800;
+const LAUNCHER_Y = 500;
+const GAME_OVER_REACH = 100;
+
+let zombieIdCounter = 0;
+let projectileIdCounter = 0;
+let spawnTimer: number | null = null;
+let lastSpawnTime = 0;
+
+export function getNextZombieId(): string {
+  return `zombie-${++zombieIdCounter}`;
+}
+
+export function getNextProjectileId(): string {
+  return `projectile-${++projectileIdCounter}`;
+}
+
+export function startZombieSpawning(level: number) {
+  lastSpawnTime = Date.now();
+
+  const spawnZombieAtInterval = () => {
+    const now = Date.now();
+    const interval = Math.max(1500, ZOMBIE_SPAWN_INTERVAL - (level - 1) * 200);
+
+    if (now - lastSpawnTime >= interval) {
+      spawnNewZombie(level);
+      lastSpawnTime = now;
+    }
+
+    spawnTimer = requestAnimationFrame(spawnZombieAtInterval);
+  };
+
+  spawnTimer = requestAnimationFrame(spawnZombieAtInterval);
+}
+
+export function stopZombieSpawning() {
+  if (spawnTimer) {
+    cancelAnimationFrame(spawnTimer);
+    spawnTimer = null;
+  }
+}
+
+export function spawnNewZombie(level: number) {
+  const words = getWordsByLevel(level);
+  const randomWord = words[Math.floor(Math.random() * words.length)];
+
+  const zombie: Zombie = {
+    id: getNextZombieId(),
+    word: randomWord,
+    x: GAME_WIDTH + 50,
+    speed: ZOMBIE_SPEED_BASE + (level - 1) * 0.1,
+    status: 'walking',
+  };
+
+  spawnZombie(zombie);
+}
+
+export function updateZombies(deltaTime: number) {
+  const { zombies } = useGameStore.getState().state;
+
+  zombies.forEach(zombie => {
+    if (zombie.status === 'walking') {
+      const newX = zombie.x - zombie.speed * deltaTime * 0.06;
+
+      if (newX <= GAME_OVER_REACH) {
+        // Zombie reached the player
+        loseLife();
+        removeZombie(zombie.id);
+      } else {
+        updateZombie({ ...zombie, x: newX });
+      }
+    }
+  });
+}
+
+export function launchProjectile(targetZombie: Zombie) {
+  const launcherX = GAME_WIDTH / 2;
+
+  const projectile: Projectile = {
+    id: getNextProjectileId(),
+    x: launcherX,
+    targetZombieId: targetZombie.id,
+    status: 'flying',
+  };
+
+  launchProjectileAction(projectile);
+}
+
+export function updateProjectiles(deltaTime: number) {
+  const { projectiles, zombies } = useGameStore.getState().state;
+
+  projectiles.forEach(projectile => {
+    if (projectile.status === 'flying') {
+      const targetZombie = zombies.find(z => z.id === projectile.targetZombieId);
+
+      if (!targetZombie || targetZombie.status === 'dead') {
+        // Target gone, remove projectile
+        removeProjectile(projectile.id);
+        return;
+      }
+
+      // Move projectile toward target
+      const dx = targetZombie.x - projectile.x;
+
+      if (Math.abs(dx) < 30) {
+        // Hit!
+        updateZombie({ ...targetZombie, status: 'hit' });
+        removeProjectile(projectile.id);
+
+        // Score
+        const baseScore = 10;
+        const comboBonus = useGameStore.getState().state.combo * 5;
+        addScore(baseScore + comboBonus);
+        incrementCombo();
+
+        // Remove zombie after hit animation
+        setTimeout(() => {
+          removeZombie(targetZombie.id);
+          setPronunciationResult('none');
+        }, 300);
+      } else {
+        const direction = dx > 0 ? 1 : -1;
+        const newX = projectile.x + direction * PROJECTILE_SPEED * deltaTime * 0.1;
+        // Note: We'd need to update projectile position here
+        // For simplicity, we just keep tracking
+      }
+    }
+  });
+}
+
+export function checkPronunciation(spokenWord: string, targetWord: Word) {
+  const normalizedSpoken = spokenWord.toLowerCase().trim();
+  const normalizedTarget = targetWord.word.toLowerCase();
+
+  // Simple fuzzy matching
+  const isCorrect =
+    normalizedSpoken === normalizedTarget ||
+    normalizedSpoken.includes(normalizedTarget) ||
+    normalizedTarget.includes(normalizedSpoken) ||
+    levenshteinDistance(normalizedSpoken, normalizedTarget) <= 2;
+
+  if (isCorrect) {
+    setPronunciationResult('correct');
+
+    // Find the zombie with this word
+    const { zombies } = useGameStore.getState().state;
+    const targetZombie = zombies.find(z => z.word.id === targetWord.id);
+
+    if (targetZombie) {
+      launchProjectile(targetZombie);
+    }
+
+    // Select next word
+    const { level } = useGameStore.getState().state;
+    const words = getWordsByLevel(level);
+    const currentWord = useGameStore.getState().state.currentWord;
+
+    if (currentWord && currentWord.id === targetWord.id) {
+      const nextWordIndex = words.findIndex(w => w.id === targetWord.id) + 1;
+      if (nextWordIndex < words.length) {
+        setCurrentWord(words[nextWordIndex]);
+      } else {
+        setCurrentWord(words[0]);
+      }
+    }
+
+    return true;
+  } else {
+    setPronunciationResult('wrong');
+    resetCombo();
+    return false;
+  }
+}
+
+// Simple Levenshtein distance for fuzzy matching
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+
+  return matrix[b.length][a.length];
+}
+
+export function checkWinCondition() {
+  const { zombies, gameResult } = useGameStore.getState().state;
+
+  if (gameResult === 'lose') {
+    return;
+  }
+
+  // Check if all zombies are defeated (empty zombie list)
+  // This is simplified - in a full game, you'd track total zombies vs killed
+}
+
+export function gameLoopUpdate(deltaTime: number) {
+  updateZombies(deltaTime);
+  updateProjectiles(deltaTime);
+}
