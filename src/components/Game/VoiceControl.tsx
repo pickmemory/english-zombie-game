@@ -1,12 +1,14 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useGameStore, setListening, setRecognition, setPronunciationResult } from '../../stores/gameStore';
 import { useVoiceRecognition } from '../../hooks/useVoiceRecognition';
 import { useTTS } from '../../hooks/useTTS';
 import { checkPronunciation } from '../../services/gameEngine';
-import { getWordsByLevel } from '../../data/words';
 
 export function VoiceControl() {
   const { state, dispatch } = useGameStore();
+  const [hasStarted, setHasStarted] = useState(false);
+  const hasStartedRef = useRef(false);
+
   const {
     isListening,
     isSupported,
@@ -18,12 +20,13 @@ export function VoiceControl() {
     onEnd: handleSpeechEnd,
   });
 
-  const { speakEnglish, speakChinese } = useTTS({
+  const { speakEnglish, speakChinese, isSpeaking } = useTTS({
     onEnd: () => {
-      // After TTS, start listening
-      setTimeout(() => {
+      // After TTS ends, auto start listening
+      if (!isListening) {
         startListening();
-      }, 500);
+        setListening(true);
+      }
     },
   });
 
@@ -41,7 +44,48 @@ export function VoiceControl() {
 
   function handleSpeechEnd() {
     setListening(false);
+    // Auto restart listening after it ends (for continuous listening)
+    if (isGameActive && currentWord) {
+      setTimeout(() => {
+        startListening();
+        setListening(true);
+      }, 300);
+    }
   }
+
+  // Auto-start when game becomes active and we have a word
+  useEffect(() => {
+    if (isGameActive && currentWord && !hasStartedRef.current) {
+      hasStartedRef.current = true;
+      setHasStarted(true);
+
+      // Play guidance - first try with user interaction simulation
+      // On mobile, this might need to wait for first user tap
+      const playGuidance = () => {
+        speakChinese(`请说: ${currentWord.word}`);
+        setTimeout(() => {
+          speakEnglish(currentWord.word);
+        }, 2500);
+      };
+
+      // Small delay then play
+      setTimeout(playGuidance, 500);
+
+      // Start listening after a bit more delay
+      setTimeout(() => {
+        startListening();
+        setListening(true);
+      }, 4000);
+    }
+
+    // Reset when game stops
+    if (!isGameActive) {
+      hasStartedRef.current = false;
+      setHasStarted(false);
+      stopListening();
+      setListening(false);
+    }
+  }, [isGameActive, currentWord]);
 
   const handleMicClick = useCallback(() => {
     if (isListening) {
@@ -53,79 +97,54 @@ export function VoiceControl() {
     }
   }, [isListening, startListening, stopListening]);
 
-  const handleSpeakWord = useCallback(() => {
-    if (currentWord) {
-      speakEnglish(currentWord.word);
-    }
-  }, [currentWord, speakEnglish]);
-
-  useEffect(() => {
-    if (isGameActive && currentWord && !isListening) {
-      // Prompt the child to say the word - use Chinese for better guidance
+  // Manual trigger for mobile - needed because browsers block auto-audio
+  const handleFirstInteraction = useCallback(() => {
+    if (currentWord && !hasStartedRef.current) {
+      hasStartedRef.current = true;
+      speakChinese(`请说: ${currentWord.word}`);
       setTimeout(() => {
-        speakChinese(`请说: ${currentWord.word}`);
-        // Then speak the English word
-        setTimeout(() => {
-          speakEnglish(currentWord.word);
-        }, 2000);
-      }, 1000);
+        speakEnglish(currentWord.word);
+      }, 2500);
+      setTimeout(() => {
+        startListening();
+        setListening(true);
+      }, 5000);
     }
-  }, [isGameActive, currentWord, speakEnglish, speakChinese]);
+  }, [currentWord, speakChinese, speakEnglish, startListening]);
 
   if (!isSupported) {
     return (
       <div className="voice-control-bar">
         <div style={{ color: 'white', textAlign: 'center' }}>
-          Voice recognition is not supported in your browser.
-          Please use Chrome or Edge.
+          🎤 请使用 Chrome 或 Edge 浏览器
         </div>
       </div>
     );
   }
 
   return (
-    <div className="voice-control-bar">
-      <button
-        className={`mic-button ${isListening ? 'active' : ''}`}
-        onClick={handleMicClick}
-        disabled={!isGameActive}
-      >
-        🎤
-        <span className="waves"></span>
-      </button>
+    <div 
+      className="voice-control-bar"
+      onClick={handleFirstInteraction}
+    >
+      {/* Auto-listening indicator */}
+      <div className="auto-listen-indicator">
+        {isListening ? '🎤 正在听...' : isSpeaking ? '🔊 播放中...' : '👆 点击开始'}
+      </div>
 
       {currentWord && (
         <>
           <div className="current-word-display">
             {currentWord.word}
           </div>
-
-          <button
-            className="btn btn-secondary"
-            onClick={handleSpeakWord}
-            disabled={!isGameActive}
-            style={{ padding: '8px 16px', fontSize: '16px' }}
-          >
-            🔊
-          </button>
-
-          {state.lastRecognition && (
-            <div className="voice-prompt">
-              You said: "{state.lastRecognition}"
-            </div>
-          )}
         </>
       )}
 
       {pronunciationResult !== 'none' && (
         <div className={`pronunciation-feedback ${pronunciationResult}`}>
-          {pronunciationResult === 'correct' ? '✓ Correct!' : '✗ Try Again!'}
+          {pronunciationResult === 'correct' ? '🎉 太棒了！' : '🔄 再试一次！'}
         </div>
       )}
-
-      <div className="voice-prompt">
-        {isListening ? 'Listening...' : 'Click microphone and say the word!'}
-      </div>
     </div>
   );
 }
