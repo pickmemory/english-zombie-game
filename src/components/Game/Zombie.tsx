@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { Zombie as ZombieType } from '../../types/game';
-import { getWordGifUrl } from '../../data/wordImages';
+import { getWordVisual } from '../../data/wordVisuals';
 
 interface ZombieProps {
   zombie: ZombieType;
@@ -9,10 +8,7 @@ interface ZombieProps {
 export function Zombie({ zombie }: ZombieProps) {
   const x = zombie.x;
   const y = zombie.y || window.innerHeight / 2;
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  
-  const imageUrl = getWordGifUrl(zombie.word.word);
+  const visual = getWordVisual(zombie.word.word);
   const statusClass = zombie.status === 'hit' ? 'hit' : zombie.status === 'dying' ? 'dying' : '';
 
   return (
@@ -21,20 +17,13 @@ export function Zombie({ zombie }: ZombieProps) {
       top: `${y}px`,
       transform: 'translate(-50%, -50%)'
     }}>
-      {/* 头顶的单词牌 - 包含单词和图片/GIF */}
+      {/* 头顶的单词牌 - 使用 emoji 图标 */}
       <div className="zombie-word-sign">
-        <div className="word-sign-image">
-          {!imageError ? (
-            <img 
-              src={imageUrl} 
-              alt={zombie.word.word}
-              onLoad={() => setImageLoaded(true)}
-              onError={() => setImageError(true)}
-              style={{ opacity: imageLoaded ? 1 : 0 }}
-            />
-          ) : (
-            <div className="image-placeholder">🖼️</div>
-          )}
+        <div 
+          className="word-sign-emoji"
+          style={{ backgroundColor: visual.color }}
+        >
+          {visual.emoji}
         </div>
         <div className="word-sign-text">{zombie.word.word}</div>
       </div>
