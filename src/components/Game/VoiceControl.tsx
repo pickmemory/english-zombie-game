@@ -61,12 +61,16 @@ export function VoiceControl() {
 
   useEffect(() => {
     if (isGameActive && currentWord && !isListening) {
-      // Prompt the child to say the word
+      // Prompt the child to say the word - use Chinese for better guidance
       setTimeout(() => {
-        speakEnglish(currentWord.word);
+        speakChinese(`请说: ${currentWord.word}`);
+        // Then speak the English word
+        setTimeout(() => {
+          speakEnglish(currentWord.word);
+        }, 2000);
       }, 1000);
     }
-  }, [isGameActive, currentWord]);
+  }, [isGameActive, currentWord, speakEnglish, speakChinese]);
 
   if (!isSupported) {
     return (

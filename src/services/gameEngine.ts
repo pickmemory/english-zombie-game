@@ -81,6 +81,9 @@ export function spawnNewZombie(level: number) {
   };
 
   spawnZombie(zombie);
+  
+  // Also set current word for TTS to speak
+  setCurrentWord(randomWord);
 }
 
 export function updateZombies(deltaTime: number) {
